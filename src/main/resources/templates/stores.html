@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>악기점 및 공방 지도</title>
-<!--    API 키 받아서 수정 필요-->
-<!--    <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=YOUR_NAVER_MAP_API_KEY"></script>-->
+    <title>악기점 지도 검색</title>
+    <!-- 네이버 지도 API 스크립트 (YOUR_CLIENT_ID는 발급받은 API 키로 대체) -->
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h20sbqx7iz"></script>
     <style>
         #map {
             width: 100%;
@@ -13,43 +13,87 @@
     </style>
 </head>
 <body>
-<h1>서울 내 악기점 및 공방</h1>
+
+<h2>지도에서 악기점 검색하기</h2>
+<input type="text" id="searchKeyword" placeholder="검색어를 입력하세요 (예: 악기점)">
+<button onclick="searchPlaces()">검색</button>
+
 <div id="map"></div>
 
 <script>
+    // 네이버 지도 초기 설정
     var map = new naver.maps.Map('map', {
-        center: new naver.maps.LatLng(37.5665, 126.9780), // 서울 시청 좌표
-        zoom: 10
+        center: new naver.maps.LatLng(37.5665, 126.9780), // 서울 중심 좌표
+        zoom: 13
     });
 
-    var stores = [[# th:each="store : ${stores}"#]
-    {
-        name: "[# th:text="${store.name}" #]",
-        latitude: [# th:text="${store.latitude}" #],
-        longitude: [# th:text="${store.longitude}" #]
-    },
-    [# end #]
-    ];
+    // 마커를 저장하는 배열
+    var markers = [];
 
-    stores.forEach(function(store) {
-        var marker = new naver.maps.Marker({
-            position: new naver.maps.LatLng(store.latitude, store.longitude),
-            map: map,
-            title: store.name
-        });
+    // 장소 검색 함수
+    function searchPlaces() {
+        var keyword = document.getElementById("searchKeyword").value;
 
-        var infowindow = new naver.maps.InfoWindow({
-            content: '<div style="width:150px;text-align:center;padding:10px;">' + store.name + '</div>'
-        });
+        if (!keyword.trim()) {
+            alert("검색어를 입력하세요.");
+            return;
+        }
 
-        naver.maps.Event.addListener(marker, "click", function(e) {
-            if (infowindow.getMap()) {
-                infowindow.close();
-            } else {
-                infowindow.open(map, marker);
-            }
+        // Java 백엔드 API 호출
+        fetch(`/api/search?query=${keyword}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.items.length === 0) {
+                    alert("검색 결과가 없습니다.");
+                    return;
+                }
+
+                // 기존 마커 초기화
+                clearMarkers();
+
+                // 첫 번째 검색 결과 위치로 지도 이동
+                var firstPlace = data.items[0];
+                var position = new naver.maps.LatLng(firstPlace.mapy, firstPlace.mapx);
+                map.setCenter(position);
+
+                // 검색 결과 위치에 마커와 정보 창 표시
+                data.items.forEach(function(place) {
+                    var lat = place.mapy;
+                    var lng = place.mapx;
+                    var marker = new naver.maps.Marker({
+                        position: new naver.maps.LatLng(lat, lng),
+                        map: map
+                    });
+
+                    var infoWindow = new naver.maps.InfoWindow({
+                        content: '<div style="padding:10px;min-width:200px;">' +
+                            '<strong>' + place.title + '</strong><br>' +
+                            place.roadAddress + '<br>' +
+                            place.phone + '</div>'
+                    });
+
+                    // 마커 클릭 시 정보 창 열기
+                    naver.maps.Event.addListener(marker, "click", function() {
+                        infoWindow.open(map, marker);
+                    });
+
+                    markers.push(marker);
+                });
+            })
+            .catch(error => {
+                console.error("API 호출 오류:", error);
+                alert("검색에 실패했습니다. 다시 시도해주세요.");
+            });
+    }
+
+    // 기존 마커 제거 함수
+    function clearMarkers() {
+        markers.forEach(function(marker) {
+            marker.setMap(null);
         });
-    });
+        markers = [];
+    }
 </script>
+
 </body>
 </html>

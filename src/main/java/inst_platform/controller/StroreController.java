@@ -1,5 +1,6 @@
 package inst_platform.controller;
 
+import inst_platform.inst_platform.InstPlatformApplication;
 import inst_platform.model.Store;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ui.Model;
@@ -7,6 +8,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 public class StroreController {
     @Value("${naver.map.api.key}")
@@ -24,5 +30,17 @@ public class StroreController {
         model.addAttribute("stores", stores);
         model.addAttribute("naverMapApiKey", naverMapApiKey);
         return "stores";
+    }
+
+    @RestController
+    public class NaverPlaceController {
+
+        @Autowired
+        private InstPlatformApplication.NaverPlaceService naverPlaceService;
+
+        @GetMapping("/api/search")
+        public String search(@RequestParam String query) {
+            return naverPlaceService.searchPlaces(query);
+        }
     }
 }
